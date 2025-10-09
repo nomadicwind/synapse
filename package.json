@@ -1,0 +1,19 @@
+{
+  "name": "synapse",
+  "version": "1.0.0",
+  "description": "A knowledge capture and distillation system",
+  "main": "index.js",
+  "scripts": {
+    "start": "docker-compose up",
+    "dev": "docker-compose up --build",
+    "stop": "docker-compose down",
+    "logs": "docker-compose logs -f",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend/api && python -m pytest test_main.py -v && cd ../worker && python -m pytest test_app.py -v && cd ../../infrastructure/stt_service && python -m pytest test_app.py -v",
+    "test:frontend": "cd frontend/mobile && npm test",
+    "test:coverage": "npm run test:backend -- --cov && cd frontend/mobile && npm test -- --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
