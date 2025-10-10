@@ -37,14 +37,18 @@ Before setting up Synapse, ensure you have the following installed:
 
 ## Installation and Setup
 
-### 1. Clone the repository
+For detailed, step-by-step instructions on starting all Synapse services, see the [Startup Guide](STARTUP_GUIDE.md).
+
+### Quick Start
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/nomadicwind/synapse.git
 cd synapse
 ```
 
-### 2. Set up environment variables
+#### 2. Set up environment variables
 
 Create a `.env` file in the root directory:
 
@@ -54,7 +58,7 @@ cp .env.example .env
 
 Update the `.env` file with your configuration values.
 
-### 3. Start the services
+#### 3. Start the services
 
 ```bash
 docker-compose up -d
@@ -68,19 +72,21 @@ This will start all the required services including:
 - Celery worker
 - STT service
 
-### 4. Set up the database
+#### 4. Set up the database
 
 ```bash
 docker-compose exec api python setup_database.py
 ```
 
-### 5. Run the mobile app
+#### 5. Run the mobile app
 
 ```bash
 cd frontend/mobile
 npm install
 npx react-native run-ios  # or run-android
 ```
+
+> **Note**: The [Startup Guide](STARTUP_GUIDE.md) contains comprehensive instructions including verification steps, troubleshooting tips, and detailed explanations of each service.
 
 ## Configuration
 
