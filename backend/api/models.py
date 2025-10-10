@@ -15,7 +15,7 @@ class KnowledgeItem(Base):
     processed_text_content = Column(Text, nullable=True)
     processed_html_content = Column(Text, nullable=True)
     title = Column(Text, nullable=True)
-    source_url = Column(Text, nullable=True)
+    source_url = Column(Text, nullable=True, unique=True)  # Ensure each URL is only captured once
     author = Column(Text, nullable=True)
     published_date = Column(DateTime(timezone=True), nullable=True)
     status = Column(String(30), nullable=False, default='pending')

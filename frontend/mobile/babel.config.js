@@ -1,12 +1,23 @@
 module.exports = function(api) {
+  // Check environment before caching
+  const isTest = api.env('test');
   api.cache(true);
+  
   return {
-    presets: ['babel-preset-expo'],
+    presets: [
+      [
+        'babel-preset-expo',
+        isTest ? {} : {
+          'jsxImportSource': 'nativewind'
+        }
+      ]
+    ],
     plugins: [
       [
-        '@babel/plugin-transform-modules-commonjs',
+        'module:react-native-dotenv',
         {
-          'allowTopLevelThis': true
+          'moduleName': '@env',
+          'path': '.env'
         }
       ],
       [

@@ -174,7 +174,7 @@ CREATE TABLE knowledge_items (
 
     -- Metadata
     title TEXT,
-    source_url TEXT,
+    source_url TEXT UNIQUE, -- Ensure each URL is only captured once
     author TEXT,
     published_date TIMESTAMPTZ,
 
@@ -190,6 +190,8 @@ CREATE TABLE knowledge_items (
 -- Index for efficient user-specific lookups
 CREATE INDEX idx_knowledge_items_user_id ON knowledge_items(user_id);
 CREATE INDEX idx_knowledge_items_status ON knowledge_items(status);
+-- Unique index for source_url to enforce uniqueness constraint
+CREATE UNIQUE INDEX idx_knowledge_items_source_url ON knowledge_items(source_url);
 
 -- Table for tracking extracted images
 CREATE TABLE image_assets (

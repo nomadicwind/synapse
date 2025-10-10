@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, Alert, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ThemedView } from '@/components/themed-view';
@@ -14,16 +14,20 @@ export default function WebCapturePage() {
   const colorScheme = useColorScheme();
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called');
     if (!url.trim()) {
       Alert.alert('Error', 'Please enter a URL');
+      console.log('URL is empty');
       return;
     }
 
     // Basic URL validation
     try {
       new URL(url);
+      console.log('URL is valid:', url);
     } catch (e) {
       Alert.alert('Error', 'Please enter a valid URL');
+      console.log('Invalid URL:', url, e);
       return;
     }
 
@@ -90,9 +94,9 @@ export default function WebCapturePage() {
           <ThemedText style={styles.label}>Content Type</ThemedText>
           <View style={styles.radioGroup}>
             {(['webpage', 'video', 'audio'] as const).map((type) => (
-              <TouchableOpacity
+              <Pressable
                 key={type}
-                style={[
+                style={({ pressed }) => [
                   styles.radioButton,
                   sourceType === type && styles.radioButtonSelected,
                   { 
@@ -100,7 +104,8 @@ export default function WebCapturePage() {
                     backgroundColor: sourceType === type 
                       ? (colorScheme === 'dark' ? '#333' : '#e0e0e0')
                       : (colorScheme === 'dark' ? '#1a1a1a' : '#f5f5f5')
-                  }
+                  },
+                  pressed && { opacity: 0.7 }
                 ]}
                 onPress={() => setSourceType(type)}
               >
@@ -110,23 +115,32 @@ export default function WebCapturePage() {
                 ]}>
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </ThemedText>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            isLoading && styles.submitButtonDisabled
-          ]}
-          onPress={handleSubmit}
+        <Pressable
+          style={({ pressed }) => {
+            console.log('Submit button pressed state:', pressed);
+            return [
+              styles.submitButton,
+              isLoading && styles.submitButtonDisabled,
+              pressed && !isLoading && { opacity: 0.8 }
+            ];
+          }}
+          onPress={() => {
+            console.log('Submit button clicked');
+            handleSubmit();
+          }}
           disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Capture Content"
         >
           <ThemedText style={styles.submitButtonText}>
             {isLoading ? 'Submitting...' : 'Capture Content'}
           </ThemedText>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </ThemedView>
   );
@@ -164,11 +178,17 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     color: '#000',
+    // Web-specific styles
+    ...(Platform.OS === 'web' && {
+      outlineStyle: 'none',
+      cursor: 'text',
+    }),
   },
   radioGroup: {
     flexDirection: 'row',
     gap: 10,
     flexWrap: 'wrap',
+    zIndex: 1, // Ensure radio buttons are above other elements
   },
   radioButton: {
     borderWidth: 2,
@@ -179,6 +199,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
     minWidth: 100,
+    // Web-specific styles
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      userSelect: 'none',
+    }),
   },
   radioButtonSelected: {
     borderColor: '#007AFF',
@@ -198,9 +223,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     marginTop: 20,
+    // Web-specific styles
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      userSelect: 'none',
+    }),
   },
   submitButtonDisabled: {
     backgroundColor: '#ccc',
+    // Web-specific styles
+    ...(Platform.OS === 'web' && {
+      cursor: 'not-allowed',
+    }),
   },
   submitButtonText: {
     color: '#fff',

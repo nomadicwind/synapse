@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column('processed_text_content', sa.Text(), nullable=True),
         sa.Column('processed_html_content', sa.Text(), nullable=True),
         sa.Column('title', sa.Text(), nullable=True),
-        sa.Column('source_url', sa.Text(), nullable=True),
+        sa.Column('source_url', sa.Text(), nullable=True, unique=True),  # Ensure each URL is only captured once
         sa.Column('author', sa.Text(), nullable=True),
         sa.Column('published_date', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column('status', sa.VARCHAR(30), nullable=False, server_default='pending'),
@@ -39,6 +39,8 @@ def upgrade() -> None:
     # Create indexes
     op.create_index('idx_knowledge_items_user_id', 'knowledge_items', ['user_id'])
     op.create_index('idx_knowledge_items_status', 'knowledge_items', ['status'])
+    # Create unique index for source_url to enforce uniqueness constraint
+    op.create_index('idx_knowledge_items_source_url', 'knowledge_items', ['source_url'], unique=True)
     
     # Create image_assets table
     op.create_table(

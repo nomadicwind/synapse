@@ -95,12 +95,17 @@ cd infrastructure/stt_service && python app.py
 cd backend/api && python setup_database.py
 ```
 
-#### 6. Run the mobile app
+#### 6. Run the mobile app or web interface
 
 ```bash
 cd frontend/mobile
 npm install
+
+# For mobile (iOS/Android)
 npx react-native run-ios  # or run-android
+
+# For web interface
+npm run web
 ```
 
 > **Note**: The [Startup Guide](STARTUP_GUIDE.md) contains comprehensive instructions including verification steps, troubleshooting tips, and detailed explanations of each service.
@@ -124,10 +129,11 @@ See [Startup Guide](STARTUP_GUIDE.md) for configuration details and service setu
 
 Once all services are running:
 
-1. The FastAPI backend will be available at `http://localhost:8000`
-2. The API documentation can be accessed at `http://localhost:8000/docs`
-3. The mobile app can be run on iOS or Android simulators/devices
-4. MinIO dashboard is available at `http://localhost:9001` (credentials: minioadmin/minioadmin)
+1. The web interface will be available at `http://localhost:19006` (main user interface)
+2. The FastAPI backend will be available at `http://localhost:8000`
+3. The API documentation can be accessed at `http://localhost:8000/docs`
+4. The mobile app can be run on iOS or Android simulators/devices
+5. MinIO dashboard is available at `http://localhost:9001` (credentials: minioadmin/minioadmin)
 
 ## Testing
 
