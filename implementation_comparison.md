@@ -27,8 +27,8 @@ This document compares the current implementation of the Synapse project against
   - *Improvement suggestion*: Implement task chaining for complex workflows and add progress tracking
 - ✅ **Database models** for `KnowledgeItem` and `ImageAsset` implemented with proper relationships
   - *Improvement suggestion*: Add database indexes for frequently queried fields and implement soft delete functionality
-- ✅ **Docker Compose infrastructure** for local development with all services
-  - *Improvement suggestion*: Add health checks for all services and implement resource limits for development environment
+- ✅ **Local service infrastructure** for development with all services running locally
+  - *Improvement suggestion*: Add health checks for all services and implement resource monitoring for development environment
 
 ### Frontend
 - ✅ **React Native with Expo and Tailwind CSS (NativeWind)** setup for cross-platform development
@@ -50,7 +50,7 @@ This document compares the current implementation of the Synapse project against
 - ❌ **Swagger/OpenAPI Documentation**: The API should have comprehensive documentation at `/docs`, including example requests/responses and error scenarios, but this may not be fully implemented.
 
 ### 5. Testing Coverage
-- ❌ **Integration Tests**: The TDD specifies integration tests using Docker to test interactions between services, including testing the interaction between the API service and Celery, and verifying that calling the API correctly enqueues a task.
+- ❌ **Integration Tests**: The TDD specifies integration tests to test interactions between services, including testing the interaction between the API service and Celery, and verifying that calling the API correctly enqueues a task.
 - ❌ **End-to-End Tests**: The TDD specifies E2E tests using Appium (for mobile) or Playwright (for web), including scripting full user scenarios like launching the app, logging in, sharing a URL, confirming capture, and verifying the processed content, but these are not implemented.
 - ❌ **Comprehensive Unit Tests**: While some unit tests exist, coverage may be incomplete, particularly for individual functions in isolation like HTML parsing logic, metadata extraction functions, and Pydantic validation models.
 

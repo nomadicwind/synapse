@@ -51,19 +51,19 @@ codeCode
 
 #### 2.2. Local Development Environment
 
-The entire stack will be orchestrated using docker-compose.yml for a one-command local setup. This file will define services for:
+The entire stack will be run as separate local services without Docker. Each service will be installed and configured individually:
 
-- api: The FastAPI application.
+- api: The FastAPI application will run directly using Python.
     
-- worker: The Celery worker.
+- worker: The Celery worker will run as a separate Python process.
     
-- db: The PostgreSQL database.
+- db: The PostgreSQL database will be installed locally or use a cloud-based PostgreSQL instance.
     
-- broker: The Redis instance.
+- broker: The Redis instance will be installed locally or use a cloud-based Redis service.
     
-- storage: The MinIO object storage server.
+- storage: MinIO object storage will be installed locally or use a cloud-based S3-compatible storage.
     
-- stt_service: A container running the Whisper model, exposed as an internal API.
+- stt_service: The Whisper model will run as a local Python service or use a cloud-based STT API.
     
 
 ### 3. Detailed Module Design
@@ -226,6 +226,8 @@ CREATE INDEX idx_image_assets_knowledge_item_id ON image_assets(knowledge_item_i
         
     - CaptureForm: The UI component that allows the user to confirm the capture and select the source_type.
         
+    - WebCapturePage: A web-specific page that allows users to manually paste URLs or local file paths and specify the source type for information capture. This page will be accessible via the web route `/capture` and will include form validation and error handling.
+        
 - **Styling:**
     
     - **NativeWind** will be configured to use Tailwind CSS utility classes directly in JSX components for rapid and consistent styling.
@@ -245,7 +247,7 @@ This project will be developed in an iterative, milestone-based approach.
 
 - **Milestone 1: Backend & Infrastructure Setup (The "Spine")**
     
-    1. Create the docker-compose.yml file to spin up all services.
+    1. Install and configure PostgreSQL, Redis, and MinIO as local services or cloud instances.
         
     2. Initialize the FastAPI and Celery applications.
         
@@ -296,7 +298,7 @@ This project will be developed in an iterative, milestone-based approach.
         
 - **Integration Tests:**
     
-    - **Backend:** Use Docker to spin up the database and broker. Test the interaction between the API service and Celery. Verify that calling the API correctly enqueues a task, and that a worker can consume it and write to the database.
+    - **Backend:** Test the interaction between the API service and Celery. Verify that calling the API correctly enqueues a task, and that a worker can consume it and write to the database.
         
 - **End-to-End (E2E) Tests:**
     

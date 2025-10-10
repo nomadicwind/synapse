@@ -70,6 +70,8 @@ codeCode
 
 - **Browser Extension:** Provides a pop-up to specify source_type: [Article/Page], [Video], [Audio].
     
+- **Web Interface:** Provides a web page where users can manually paste URLs or local file paths and specify the source type for information capture.
+    
 - **Mobile App (Android):** Integrates with the native Android Share Sheet for URLs and text, including a dialog to select source_type. Provides an in-app feature for recording voice memos.
     
 

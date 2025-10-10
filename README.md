@@ -30,16 +30,19 @@ For detailed architecture information, see [Technical Design Document](doc/tech_
 
 Before setting up Synapse, ensure you have the following installed:
 
-- Docker and Docker Compose
 - Python 3.9+
 - Node.js 16+
+- PostgreSQL 15+
+- Redis 7+
+- MinIO (latest version)
+- FFmpeg (for STT service)
 - React Native development environment (for mobile app development)
 
 ## Installation and Setup
 
 For detailed, step-by-step instructions on starting all Synapse services, see the [Startup Guide](STARTUP_GUIDE.md).
 
-### Quick Start
+### Quick Start (Local Services without Docker)
 
 #### 1. Clone the repository
 
@@ -58,27 +61,41 @@ cp .env.example .env
 
 Update the `.env` file with your configuration values.
 
-#### 3. Start the services
+#### 3. Install dependencies
 
 ```bash
-docker-compose up -d
+# API Service
+cd backend/api && pip install -r requirements.txt
+
+# Worker Service
+cd ../worker && pip install -r requirements.txt && pip install yt-dlp
+
+# STT Service
+cd ../../infrastructure/stt_service && pip install -r requirements.txt
 ```
 
-This will start all the required services including:
-- PostgreSQL database
-- Redis message broker
-- MinIO storage
-- FastAPI backend
-- Celery worker
-- STT service
-
-#### 4. Set up the database
+#### 4. Start services (in separate terminals)
 
 ```bash
-docker-compose exec api python setup_database.py
+# Start PostgreSQL, Redis, and MinIO (follow your system's installation instructions)
+
+# API Service
+cd backend/api && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Worker Service
+cd backend/worker && celery -A app.worker worker --loglevel=info
+
+# STT Service
+cd infrastructure/stt_service && python app.py
 ```
 
-#### 5. Run the mobile app
+#### 5. Set up the database
+
+```bash
+cd backend/api && python setup_database.py
+```
+
+#### 6. Run the mobile app
 
 ```bash
 cd frontend/mobile
@@ -101,7 +118,7 @@ Key environment variables that can be configured:
 - `MINIO_SECRET_KEY`: MinIO secret key
 - `STT_SERVICE_URL`: URL for the STT service
 
-See [docker-compose.yml](docker-compose.yml) for default values and service configurations.
+See [Startup Guide](STARTUP_GUIDE.md) for configuration details and service setup instructions.
 
 ## Running the Application
 

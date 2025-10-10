@@ -1,15 +1,22 @@
 import type { PropsWithChildren, ReactElement } from 'react';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform } from 'react-native';
+import { ThemedView } from '@/components/themed-view';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+
+// Import reanimated types for TypeScript
+import type {
+  AnimatedRef,
+  SharedValue,
+  AnimatedStyle,
+} from 'react-native-reanimated';
 import Animated, {
   interpolate,
   useAnimatedRef,
   useAnimatedStyle,
   useScrollOffset,
 } from 'react-native-reanimated';
-
-import { ThemedView } from '@/components/themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useThemeColor } from '@/hooks/use-theme-color';
 
 const HEADER_HEIGHT = 250;
 
@@ -25,6 +32,8 @@ export default function ParallaxScrollView({
 }: Props) {
   const backgroundColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme() ?? 'light';
+
+  // Always call hooks at the top level to avoid conditional hook calls
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollOffset(scrollRef);
   const headerAnimatedStyle = useAnimatedStyle(() => {
@@ -44,6 +53,19 @@ export default function ParallaxScrollView({
     };
   });
 
+  // For web, use regular ScrollView without animations
+  if (Platform.OS === 'web') {
+    return (
+      <ScrollView style={{ backgroundColor, flex: 1 }}>
+        <View style={[styles.header, { backgroundColor: headerBackgroundColor[colorScheme] }]}>
+          {headerImage}
+        </View>
+        <ThemedView style={styles.content}>{children}</ThemedView>
+      </ScrollView>
+    );
+  }
+
+  // For mobile, use Animated components
   return (
     <Animated.ScrollView
       ref={scrollRef}

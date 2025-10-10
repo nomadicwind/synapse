@@ -1,10 +1,10 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import SecureStorage from './SecureStorage';
 
 class APIClient {
   constructor() {
-    // Use FRONTEND_API_URL from .env file as specified in .env.example
-    this.baseURL = process.env.FRONTEND_API_URL || 'http://localhost:8000';
+    // Use API_BASE_URL from .env file
+    this.baseURL = process.env.API_BASE_URL || 'http://localhost:8000';
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 10000,
@@ -21,7 +21,7 @@ class APIClient {
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
       async (config) => {
-        const token = await SecureStore.getItemAsync('auth_token');
+        const token = await SecureStorage.getItem('auth_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -35,10 +35,10 @@ class APIClient {
     // Add response interceptor to handle errors
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
         if (error.response?.status === 401) {
           // Handle unauthorized access
-          SecureStore.deleteItemAsync('auth_token');
+          await SecureStorage.deleteItem('auth_token');
         }
         return Promise.reject(error);
       }
@@ -49,30 +49,15 @@ class APIClient {
   async login(credentials) {
     const response = await this.client.post('/auth/login', credentials);
     const { token, user } = response.data;
-    await SecureStore.setItemAsync('auth_token', token);
+    await SecureStorage.setItem('auth_token', token);
     return { token, user };
   }
 
   async logout() {
     await this.client.post('/auth/logout');
-    await SecureStore.deleteItemAsync('auth_token');
+    await SecureStorage.deleteItem('auth_token');
   }
 
-  // Knowledge items endpoints
-  async getKnowledgeItems() {
-    const response = await this.client.get('/api/v1/knowledge-items');
-    return response.data;
-  }
-
-  async captureItem(captureData) {
-    const response = await this.client.post('/api/v1/capture', captureData);
-    return response.data;
-  }
-
-  async getKnowledgeItem(id) {
-    const response = await this.client.get(`/api/v1/knowledge-items/${id}`);
-    return response.data;
-  }
 
   // STT service endpoints
   async transcribeAudio(formData) {

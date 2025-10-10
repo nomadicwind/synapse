@@ -3,18 +3,19 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      'nativewind/babel',
       [
-        'module:react-native-dotenv',
+        '@babel/plugin-transform-modules-commonjs',
         {
-          envName: 'APP_ENV',
-          moduleName: '@env',
-          path: '.env',
-          safe: false,
-          allowUndefined: true,
-          verbose: false,
-        },
+          'allowTopLevelThis': true
+        }
       ],
-    ],
+      [
+        'react-native-reanimated/plugin',
+        {
+          'globals': ['__scanQR'],
+          'relativeSourceLocation': true
+        }
+      ]
+    ]
   };
 };

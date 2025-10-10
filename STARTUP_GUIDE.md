@@ -1,13 +1,17 @@
 # Synapse Service Startup Guide
 
-This guide provides step-by-step instructions for starting all services required for textualizing sources in the Synapse project.
+This guide provides step-by-step instructions for starting all services required for textualizing sources in the Synapse project without using Docker.
 
 ## Prerequisites
 
 Before starting the services, ensure you have the following installed:
 
-- **Docker**: Version 20.10 or later
-- **Docker Compose**: Version 1.29 or later (included with Docker Desktop)
+- **Python**: Version 3.11 or later
+- **Node.js**: Version 16 or later (for frontend)
+- **PostgreSQL**: Version 15 or later
+- **Redis**: Version 7 or later
+- **MinIO**: Latest version
+- **FFmpeg**: For audio/video processing (required for STT service)
 - **Git**: For cloning the repository (if not already cloned)
 - **Minimum System Requirements**:
   - 4GB RAM (8GB recommended)
@@ -22,29 +26,94 @@ git clone https://github.com/nomadicwind/synapse.git
 cd synapse
 ```
 
-### 2. Start All Services
-The Synapse system uses Docker Compose to manage all services. Run the following command to start all services:
+### 2. Install and Configure Services
 
+#### 2.1. PostgreSQL Setup
+Install PostgreSQL locally and create a database:
 ```bash
-docker-compose up -d
+# Create database and user (adjust for your PostgreSQL installation)
+createdb synapse
+createuser synapse
+psql -c "ALTER USER synapse WITH PASSWORD 'synapse';"
+psql -c "GRANT ALL PRIVILEGES ON DATABASE synapse TO synapse;"
 ```
 
-This will start the following services in the background:
-- **PostgreSQL Database** (db) - Port 5432
-- **Redis Message Broker** (redis) - Port 6379
-- **MinIO Object Storage** (minio) - Ports 9000 (API) and 9001 (Console)
-- **API Service** (api) - Port 8000
-- **Worker Service** (worker) - No exposed port (runs in background)
-- **STT Service** (stt_service) - Port 5000
+#### 2.2. Redis Setup
+Install Redis and start the service:
+```bash
+# On macOS with Homebrew
+brew install redis
+brew services start redis
+
+# On Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis-server
+```
+
+#### 2.3. MinIO Setup
+Install MinIO and start the service:
+```bash
+# Download and install MinIO
+wget https://dl.min.io/server/minio/release/linux-amd64/minio
+chmod +x minio
+./minio server /data --console-address ":9001"
+```
+
+#### 2.4. Install Python Dependencies
+Install dependencies for API, Worker, and STT services:
+```bash
+# API Service
+cd backend/api
+pip install -r requirements.txt
+
+# Worker Service
+cd ../worker
+pip install -r requirements.txt
+pip install yt-dlp
+
+# STT Service
+cd ../../infrastructure/stt_service
+pip install -r requirements.txt
+```
+
+### 3. Start All Services
+
+Start each service in a separate terminal:
+
+#### 3.1. Start API Service
+```bash
+cd backend/api
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 3.2. Start Worker Service
+```bash
+cd backend/worker
+celery -A app.worker worker --loglevel=info
+```
+
+#### 3.3. Start STT Service
+```bash
+cd infrastructure/stt_service
+python app.py
+```
 
 ### 3. Verify Services Are Running
-Check that all services are running successfully:
+Check that all services are running successfully by accessing their health endpoints:
 
 ```bash
-docker-compose ps
-```
+# Test API Service
+curl -X GET http://localhost:8000/health
 
-You should see all services with a status of "Up" or "healthy".
+# Test STT Service
+curl -X GET http://localhost:5000/health
+
+# Test Redis
+redis-cli ping
+
+# Test PostgreSQL
+psql -U synapse -d synapse -c "SELECT 1;"
+```
 
 ### 4. Access Service Interfaces
 Once all services are running, you can access them at the following URLs:
@@ -61,10 +130,11 @@ Once all services are running, you can access them at the following URLs:
   - Health check: http://localhost:5000/health
 
 ### 5. Initialize Database (First Time Only)
-If this is your first time starting the services, you may need to initialize the database:
+If this is your first time starting the services, initialize the database:
 
 ```bash
-docker-compose exec api python setup_database.py
+cd backend/api
+python setup_database.py
 ```
 
 ## Verification Steps
@@ -79,19 +149,19 @@ Expected response: `{"status":"healthy"}`
 
 ### 2. Test Database Connection
 ```bash
-docker-compose exec db psql -U synapse -d synapse -c "SELECT 1;"
+psql -U synapse -d synapse -c "SELECT 1;"
 ```
 Expected response: Should return "1" indicating successful connection.
 
 ### 3. Test Redis Connection
 ```bash
-docker-compose exec redis redis-cli ping
+redis-cli ping
 ```
 Expected response: `PONG`
 
 ### 4. Test MinIO Connection
 ```bash
-docker-compose exec api curl -f http://minio:9000/minio/health/live
+curl -f http://localhost:9000/minio/health/live
 ```
 Expected response: Should return a 200 status code.
 
@@ -108,62 +178,40 @@ Expected response: `{"status":"healthy"}`
 #### 1. Port Conflicts
 If you get errors about ports being in use, you can either:
 - Stop the conflicting services on your host machine, or
-- Modify the port mappings in docker-compose.yml to use different host ports
+- Modify the port configurations in the respective service files
 
 #### 2. Services Not Starting
-If services fail to start or show unhealthy status:
-```bash
-# Check logs for a specific service
-docker-compose logs <service_name>
-
-# Example: Check API service logs
-docker-compose logs api
-```
+If services fail to start:
+- Check the terminal logs for each service
+- Ensure all dependencies are installed
+- Verify environment variables are set correctly
 
 #### 3. Database Initialization Issues
 If you encounter database errors:
-```bash
-# Restart the database service
-docker-compose restart db
-
-# Re-run database initialization
-docker-compose exec api python setup_database.py
-```
+- Ensure PostgreSQL is running
+- Verify the database user and permissions
+- Re-run database initialization: `python setup_database.py`
 
 #### 4. MinIO Access Issues
 If you can't access the MinIO console:
 - Ensure you're using the correct credentials (username: synapse, password: synapse123)
-- Check that the MinIO service is running: `docker-compose ps minio`
+- Check that the MinIO service is running
 
 #### 5. Worker Service Not Processing Tasks
 If the worker service appears to be running but not processing tasks:
-- Check the worker logs: `docker-compose logs worker`
+- Check the worker terminal logs
 - Ensure Redis is running and accessible
-- Restart the worker service: `docker-compose restart worker`
+- Restart the worker service
 
 ## Stopping Services
 
-To stop all services, run:
-```bash
-docker-compose down
-```
-
-To stop services but keep data volumes (database and MinIO data):
-```bash
-docker-compose down --volumes
-```
+To stop all services, simply close the terminal windows where each service is running, or use Ctrl+C in each terminal.
 
 ## Updating Services
 
-If you've made changes to the code and need to rebuild and restart services:
-
-```bash
-# Rebuild and restart specific service
-docker-compose up -d --build <service_name>
-
-# Rebuild and restart all services
-docker-compose up -d --build
-```
+If you've made changes to the code:
+- For Python services, restart the service to pick up changes
+- For services with auto-reload (like the API with --reload flag), changes will be picked up automatically
 
 ## Additional Notes
 
