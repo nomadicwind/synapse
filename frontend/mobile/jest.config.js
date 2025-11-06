@@ -1,20 +1,18 @@
 module.exports = {
   preset: 'react-native',
-  setupFilesAfterEnv: ['./jest.setup.js'],
-  testEnvironment: 'node',
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
-  },
-  transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-native-community|expo|@expo|@unimodules|react-navigation|@react-navigation|@testing-library/react-native|react-redux|expo-modules-core|@expo/vector-icons|react-native-paper|react-native-reanimated|react-native-gesture-handler|react-native-safe-area-context)/)'
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testMatch: [
+    '**/__tests__/**/*.(ts|tsx|js)',
+    '**/*.(test|spec).(ts|tsx|js)'
   ],
-  collectCoverage: false,
-  coverageThreshold: {
-    global: {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
-    }
-  }
+  collectCoverageFrom: [
+    'screens/**/*.{ts,tsx}',
+    'App.tsx',
+    '!**/*.d.ts',
+    '!**/node_modules/**'
+  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|@react-navigation|react-native-screens|react-native-safe-area-context)/)'
+  ],
 };

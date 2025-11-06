@@ -1,5 +1,10 @@
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from celery import Celery
 import logging
@@ -7,18 +12,16 @@ from typing import Dict, Any
 import uuid
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-import os
 from datetime import datetime
 import subprocess
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
-import boto3
+import shutil
 from urllib.parse import urlparse
 import tempfile
+
 # Import models from backend/api
-import sys
-import os
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 from api.models import KnowledgeItem, ImageAsset
@@ -28,27 +31,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://synapse:synapse@db:5432/synapse")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://synapse:synapse@localhost:5432/synapse")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# MinIO/S3 setup
-s3_client = boto3.client(
-    's3',
-    endpoint_url=os.getenv('MINIO_ENDPOINT', 'http://storage:9000'),
-    aws_access_key_id=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
-    aws_secret_access_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
-    region_name='us-east-1'
-)
-BUCKET_NAME = os.getenv('MINIO_BUCKET', 'synapse')
+# Local file storage setup
+STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/Users/xyw/Repos/synapse/storage')
+os.makedirs(STORAGE_ROOT, exist_ok=True)
 
 # Initialize Celery app
 celery_app = Celery('synapse_worker')
 
 # Configure Celery
 celery_app.conf.update(
-    broker_url='redis://redis:6379/0',
-    result_backend='redis://redis:6379/0',
+    broker_url=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
+    result_backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0'),
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
@@ -82,8 +79,11 @@ def process_webpage(item_id: str) -> Dict[str, Any]:
         response = requests.get(item.source_url, timeout=30)
         response.raise_for_status()
 
+        # Decode content to string for readability
+        content_str = response.content.decode('utf-8', errors='ignore')
+        
         # Use readability to extract main content
-        doc = Document(response.content)
+        doc = Document(content_str)
         title = doc.title()
         content = doc.summary()
 
@@ -107,17 +107,17 @@ def process_webpage(item_id: str) -> Dict[str, Any]:
                     img_response = requests.get(img_url, timeout=30)
                     
                     if img_response.status_code == 200:
-                        # Generate storage key
+                        # Generate storage path
                         ext = os.path.splitext(src)[1] if '.' in src else '.jpg'
                         storage_key = f"images/{item_id}/{uuid.uuid4()}{ext}"
+                        storage_path = os.path.join(STORAGE_ROOT, storage_key)
                         
-                        # Upload to MinIO
-                        s3_client.put_object(
-                            Bucket=BUCKET_NAME,
-                            Key=storage_key,
-                            Body=img_response.content,
-                            ContentType=img_response.headers.get('content-type', 'image/jpeg')
-                        )
+                        # Create directory if it doesn't exist
+                        os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+                        
+                        # Save image to local storage
+                        with open(storage_path, 'wb') as f:
+                            f.write(img_response.content)
                         
                         # Create image asset record
                         image_asset = ImageAsset(
@@ -201,7 +201,7 @@ def process_media(item_id: str, source_type: str) -> Dict[str, Any]:
                 raise Exception(f"yt-dlp failed: {result.stderr}")
 
             # Send to STT service
-            stt_url = os.getenv('STT_SERVICE_URL', 'http://stt_service:5000/transcribe')
+            stt_url = os.getenv('STT_SERVICE_URL', 'http://localhost:5000/transcribe')
             
             with open(temp_path, 'rb') as audio_file:
                 files = {'audio': audio_file}

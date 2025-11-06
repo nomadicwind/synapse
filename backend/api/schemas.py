@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal
+from typing import Literal, Optional
 import re
 
 class CaptureRequest(BaseModel):
@@ -38,16 +38,16 @@ class CaptureResponse(BaseModel):
 
 class KnowledgeItemBase(BaseModel):
     user_id: str
-    processed_text_content: str | None = None
-    processed_html_content: str | None = None
-    title: str | None = None
-    source_url: str | None = None
-    author: str | None = None
-    published_date: str | None = None
+    processed_text_content: Optional[str] = None
+    processed_html_content: Optional[str] = None
+    title: Optional[str] = None
+    source_url: Optional[str] = None
+    author: Optional[str] = None
+    published_date: Optional[str] = None
     status: str
     source_type: str
-    created_at: str | None = None
-    processed_at: str | None = None
+    created_at: Optional[str] = None
+    processed_at: Optional[str] = None
 
 class KnowledgeItemCreate(KnowledgeItemBase):
     pass

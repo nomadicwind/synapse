@@ -1,22 +1,10 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getDefaultConfig(__dirname);
-
-// Add web-specific configuration
-config.resolver.sourceExts.push('web.js', 'web.ts', 'web.tsx');
-
-// Configure ES modules for web
-config.transformer.getTransformOptions = async () => ({
-  transform: {
-    experimentalImportSupport: false,
-    inlineRequires: true,
-  },
+/** @type {import('metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname, {
+  isCSSEnabled: true,
 });
 
-// Add web-specific resolver options
-config.resolver = {
-  ...config.resolver,
-  resolverMainFields: ['browser', 'module', 'main'],
-};
+config.transformer.unstable_allowRequireContext = true;
 
 module.exports = config;

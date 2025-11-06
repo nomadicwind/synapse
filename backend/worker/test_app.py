@@ -29,7 +29,7 @@ def mock_s3_client():
     with patch('app.s3_client') as mock_s3:
         yield mock_s3
 
-def test_process_webpage_success(mock_db_session, mock_requests, mock_s3_client):
+def test_process_webpage_success(mock_db_session, mock_requests):
     """Test successful webpage processing"""
     item_id = str(uuid.uuid4())
     

@@ -74,16 +74,64 @@ cd ../worker && pip install -r requirements.txt && pip install yt-dlp
 cd ../../infrastructure/stt_service && pip install -r requirements.txt
 ```
 
-#### 4. Start services (in separate terminals)
+#### 4. Start required services
+
+Make sure the dependent services are running before launching the Synapse processes:
+
+**PostgreSQL**
+- macOS (Homebrew):
+  ```bash
+  brew services start postgresql@14
+  createdb synapse
+  psql -d postgres -c "CREATE USER synapse WITH PASSWORD 'synapse';"
+  psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE synapse TO synapse;"
+  ```
+- Ubuntu/Debian:
+  ```bash
+  sudo apt-get install postgresql-14
+  sudo systemctl start postgresql
+  sudo -u postgres createdb synapse
+  sudo -u postgres psql -c "CREATE USER synapse WITH PASSWORD 'synapse';"
+  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE synapse TO synapse;"
+  ```
+
+**Redis**
+- macOS (Homebrew):
+  ```bash
+  brew install redis
+  brew services start redis
+  ```
+- Ubuntu/Debian:
+  ```bash
+  sudo apt-get install redis-server
+  sudo systemctl enable --now redis-server
+  ```
+
+**MinIO**
+- macOS (Homebrew):
+  ```bash
+  brew install minio/stable/minio
+  mkdir -p ~/minio-data
+  MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
+    minio server ~/minio-data --console-address ":9001"
+  ```
+- Linux (generic):
+  ```bash
+  wget https://dl.min.io/server/minio/release/linux-amd64/minio
+  chmod +x minio
+  mkdir -p ~/minio-data
+  MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
+    ./minio server ~/minio-data --console-address ":9001"
+  ```
+
+Once PostgreSQL, Redis, and MinIO are running, start the Synapse services (each in its own terminal):
 
 ```bash
-# Start PostgreSQL, Redis, and MinIO (follow your system's installation instructions)
-
 # API Service
 cd backend/api && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # Worker Service
-cd backend/worker && celery -A app.worker worker --loglevel=info
+cd backend/worker && celery -A app:celery_app worker --loglevel=info
 
 # STT Service
 cd infrastructure/stt_service && python app.py
