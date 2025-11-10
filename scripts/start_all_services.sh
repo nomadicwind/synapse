@@ -8,9 +8,15 @@
 #   --stt-port PORT        Port for STT service (default: 5000)
 #   --mobile               Start mobile frontend development server
 #   --all                  Start all services (default)
+#   --stop                 Stop all running services
 #   --help                 Show this help message
 
 set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Change to the project root directory
+cd "$SCRIPT_DIR/.."
 
 # Default values
 API_PORT=8000
@@ -19,6 +25,7 @@ START_API=true
 START_WORKER=true
 START_STT=true
 START_MOBILE=false
+STOP_SERVICES=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -50,6 +57,10 @@ while [[ $# -gt 0 ]]; do
             grep '^#' "$0" | cut -c4-
             exit 0
             ;;
+        --stop)
+            STOP_SERVICES=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
             exit 1
@@ -57,11 +68,55 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Function to check if a port is in use
+is_port_in_use() {
+    local port=$1
+    if lsof -i :$port > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to stop all running services
+stop_services() {
+    echo "Stopping all services..."
+    if [ "$START_API" = true ] && [ ! -z "$API_PID" ]; then
+        kill $API_PID 2>/dev/null && echo "API service stopped" || echo "API service was not running"
+    fi
+    if [ "$START_WORKER" = true ] && [ ! -z "$WORKER_PID" ]; then
+        kill $WORKER_PID 2>/dev/null && echo "Worker service stopped" || echo "Worker service was not running"
+    fi
+    if [ "$START_STT" = true ] && [ ! -z "$STT_PID" ]; then
+        kill $STT_PID 2>/dev/null && echo "STT service stopped" || echo "STT service was not running"
+    fi
+    if [ "$START_MOBILE" = true ] && [ ! -z "$MOBILE_PID" ]; then
+        kill $MOBILE_PID 2>/dev/null && echo "Mobile frontend stopped" || echo "Mobile frontend was not running"
+    fi
+    echo "All services stopped."
+}
+
+# If --stop is specified, stop services and exit
+if [ "$STOP_SERVICES" = true ]; then
+    stop_services
+    exit 0
+fi
+
 echo "Starting Synapse services..."
 
 # Function to start API service
 start_api() {
     echo "Starting API service on port $API_PORT..."
+    
+    # Check if port is already in use
+    if is_port_in_use $API_PORT; then
+        echo "ERROR: Port $API_PORT is already in use!"
+        echo "Please either:"
+        echo "1. Stop the process using port $API_PORT (run 'lsof -i :$API_PORT' to find it)"
+        echo "2. Use a different port with --api-port PORT"
+        exit 1
+    fi
+    
     cd backend/api
     source .venv-py39/bin/activate
     uvicorn main:app --host 0.0.0.0 --port $API_PORT &
@@ -84,6 +139,16 @@ start_worker() {
 # Function to start STT service
 start_stt() {
     echo "Starting STT service on port $STT_PORT..."
+    
+    # Check if port is already in use
+    if is_port_in_use $STT_PORT; then
+        echo "ERROR: Port $STT_PORT is already in use!"
+        echo "Please either:"
+        echo "1. Stop the process using port $STT_PORT (run 'lsof -i :$STT_PORT' to find it)"
+        echo "2. Use a different port with --stt-port PORT"
+        exit 1
+    fi
+    
     cd infrastructure/stt_service
     source ../../backend/api/.venv-py39/bin/activate
     uvicorn app:app --host 0.0.0.0 --port $STT_PORT &
@@ -140,12 +205,8 @@ fi
 echo ""
 echo "To stop all services, press Ctrl+C"
 
+
 # Wait for Ctrl+C
-trap 'echo "Stopping all services..."; 
-      if [ "$START_API" = true ]; then kill $API_PID 2>/dev/null; fi;
-      if [ "$START_WORKER" = true ]; then kill $WORKER_PID 2>/dev/null; fi;
-      if [ "$START_STT" = true ]; then kill $STT_PID 2>/dev/null; fi;
-      if [ "$START_MOBILE" = true ]; then kill $MOBILE_PID 2>/dev/null; fi;
-      echo "All services stopped."; exit 0' INT
+trap 'stop_services; exit 0' INT
 
 wait
