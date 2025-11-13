@@ -47,6 +47,7 @@ def test_process_webpage_success(mock_db_session, mock_requests):
     assert result["status"] == "success"
     assert result["item_id"] == item_id
     assert mock_item.status == "ready_for_distillation"
+    assert mock_item.last_error is None
     mock_db_session.commit.assert_called_once()
 
 def test_process_webpage_not_found(mock_db_session):
@@ -82,6 +83,7 @@ def test_process_webpage_error(mock_db_session, mock_requests):
     assert result["status"] == "error"
     assert result["item_id"] == item_id
     assert mock_item.status == "error"
+    assert mock_item.last_error == "Network error"
     mock_db_session.commit.assert_called_once()
 
 def test_process_media_success(mock_db_session):
@@ -111,6 +113,7 @@ def test_process_media_success(mock_db_session):
     assert result["status"] == "success"
     assert result["item_id"] == item_id
     assert mock_item.status == "ready_for_distillation"
+    assert mock_item.last_error is None
     mock_db_session.commit.assert_called_once()
 
 def test_process_media_not_found(mock_db_session):
@@ -146,4 +149,5 @@ def test_process_media_error(mock_db_session):
     assert result["status"] == "error"
     assert result["item_id"] == item_id
     assert mock_item.status == "error"
+    assert mock_item.last_error == "yt-dlp failed"
     mock_db_session.commit.assert_called_once()

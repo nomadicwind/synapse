@@ -25,6 +25,7 @@ venv/
 ENV/
 .env
 .venv
+.venv-py311/
 
 # IDE
 .vscode/

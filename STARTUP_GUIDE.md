@@ -118,6 +118,20 @@ npm install
 npm run web
 ```
 
+#### 3.5. Start Backend Service Console (Operators)
+The console provides a dashboard for monitoring health, queue depth, and retrying failed captures.
+
+```bash
+cd console
+npm install   # first run only
+npm run dev
+```
+
+- Default URL: `http://localhost:5173`
+- Configure the API origin via `VITE_CONSOLE_API_BASE_URL`
+- Ensure the FastAPI service allows the console origin by setting `CONSOLE_ALLOWED_ORIGINS` (default includes `http://localhost:5173`)
+- Optional security: set `CONSOLE_API_TOKEN` on the API and `VITE_CONSOLE_API_TOKEN` on the console to require an `X-Console-Token` header for every console request
+
 > **Note**: The web interface is built using React Native with Expo, which supports web deployment. This will start the web interface at http://localhost:19006.
 
 ### 3. Verify Services Are Running

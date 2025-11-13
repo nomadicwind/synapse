@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import Literal
 from datetime import datetime
@@ -8,14 +8,15 @@ import logging
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from models import KnowledgeItem as models_KnowledgeItem, ImageAsset
-from schemas import CaptureRequest, CaptureResponse, KnowledgeItemBase, KnowledgeItemCreate, KnowledgeItem as schemas_KnowledgeItem
-from database import engine, SessionLocal, Base
+from models import KnowledgeItem as models_KnowledgeItem
+from schemas import CaptureRequest, CaptureResponse, KnowledgeItem as schemas_KnowledgeItem
+from database import engine, Base, get_db
 from sqlalchemy.orm import Session
-from celery import Celery
 
-import json
 from functools import wraps
+
+from celery_app import celery_app
+from console_routes import router as console_router
 
 # Configure structured logging
 logging.basicConfig(
@@ -42,11 +43,6 @@ def log_execution_time(func):
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Initialize Celery
-celery_app = Celery('synapse_api')
-celery_app.conf.broker_url = 'redis://localhost:6379/0'
-celery_app.conf.result_backend = 'redis://localhost:6379/0'
-
 app = FastAPI(
     title="Synapse API",
     description="API for the Synapse knowledge management system - a platform for capturing, processing, and organizing knowledge from various sources",
@@ -61,6 +57,26 @@ app = FastAPI(
     },
 )
 
+default_allowed_origins = ",".join([
+    "http://localhost:5173",   # console
+    "http://localhost:19006",  # Expo web default
+    "http://localhost:8081",   # Metro bundler
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:19006",
+    "http://127.0.0.1:8081",
+])
+allowed_console_origins = os.getenv("CONSOLE_ALLOWED_ORIGINS", default_allowed_origins)
+origin_list = [origin.strip() for origin in allowed_console_origins.split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origin_list or ["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(console_router)
+
 # Add middleware for logging requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -68,14 +84,6 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     logger.info(f"Response: {response.status_code}")
     return response
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # We'll use the schemas from schemas.py instead of defining them here
 

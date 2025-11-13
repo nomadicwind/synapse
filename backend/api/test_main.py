@@ -6,11 +6,13 @@ import sys
 import os
 import logging
 from datetime import datetime
+from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from main import app
 from models import KnowledgeItem
 from schemas import KnowledgeItemCreate, KnowledgeItemBase
+from database import get_db
 import uuid
 
 client = TestClient(app)
@@ -435,3 +437,191 @@ def test_concurrent_captures(mock_db_session, mock_celery_task):
         
         # Verify Celery tasks were called for each request
         assert mock_celery_task.call_count == 5
+
+
+def test_console_health_endpoint(mock_db_session, monkeypatch):
+    """Console health endpoint aggregates component statuses"""
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+    mock_db_session.execute.return_value = None
+
+    with patch("console_routes.redis.from_url") as mock_redis, \
+            patch("console_routes.boto3.client") as mock_boto, \
+            patch("console_routes.requests.get") as mock_requests_get, \
+            patch("console_routes.celery_app.control.inspect") as mock_inspect:
+
+        redis_instance = MagicMock()
+        mock_redis.return_value = redis_instance
+        redis_instance.ping.return_value = True
+
+        mock_boto.return_value.head_bucket.return_value = None
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"model": "base"}
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        inspect_instance = MagicMock()
+        inspect_instance.ping.return_value = {"worker@1": {"ok": "pong"}}
+        mock_inspect.return_value = inspect_instance
+
+        response = client.get("/internal/console/health")
+        assert response.status_code == 200
+        components = response.json()["components"]
+        assert components["redis"]["status"] == "healthy"
+        assert components["worker"]["status"] == "healthy"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_console_auth_token_required(mock_db_session, monkeypatch):
+    """Console endpoints require auth token when configured"""
+    monkeypatch.setenv("CONSOLE_API_TOKEN", "secret-token")
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+
+    response = client.get("/internal/console/health")
+    assert response.status_code == 401
+
+    with patch("console_routes.redis.from_url") as mock_redis, \
+            patch("console_routes.boto3.client"), \
+            patch("console_routes.requests.get"), \
+            patch("console_routes.celery_app.control.inspect") as mock_inspect:
+
+        redis_instance = MagicMock()
+        mock_redis.return_value = redis_instance
+        redis_instance.ping.return_value = True
+        inspect_instance = MagicMock()
+        inspect_instance.ping.return_value = {"worker@1": {"ok": "pong"}}
+        mock_inspect.return_value = inspect_instance
+
+        response = client.get(
+            "/internal/console/health",
+            headers={"X-Console-Token": "secret-token"}
+        )
+        assert response.status_code == 200
+
+    app.dependency_overrides.pop(get_db, None)
+    monkeypatch.delenv("CONSOLE_API_TOKEN", raising=False)
+
+
+def test_console_metrics_endpoint():
+    """Console metrics endpoint returns Celery stats"""
+    with patch("console_routes.celery_app.control.inspect") as mock_inspect:
+        inspect_instance = MagicMock()
+        inspect_instance.stats.return_value = {
+            "worker@1": {"total": {"tasks.process_webpage": 2}, "pid": 123, "uptime": 10, "loadavg": [0.1, 0.2, 0.3]}
+        }
+        inspect_instance.active.return_value = {"worker@1": [{"name": "tasks.process_webpage"}]}
+        inspect_instance.reserved.return_value = {"worker@1": [{"name": "tasks.process_webpage", "delivery_info": {"routing_key": "default"}}]}
+        inspect_instance.scheduled.return_value = {}
+        mock_inspect.return_value = inspect_instance
+
+        response = client.get("/internal/console/metrics")
+        assert response.status_code == 200
+        data = response.json()
+        assert "workers" in data
+        assert data["queued_tasks"]["default"] == 1
+
+
+def test_console_knowledge_items_list(mock_db_session):
+    """Console listing endpoint returns items filtered by status"""
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+    query_mock = MagicMock()
+    mock_db_session.query.return_value = query_mock
+    query_mock.filter.return_value = query_mock
+    query_mock.count.return_value = 1
+    query_mock.order_by.return_value = query_mock
+    query_mock.offset.return_value = query_mock
+    query_mock.limit.return_value = query_mock
+
+    fake_item = MagicMock()
+    fake_item.id = uuid.uuid4()
+    fake_item.source_type = "webpage"
+    fake_item.source_url = "https://example.com"
+    fake_item.status = "error"
+    fake_item.processed_at = datetime.now()
+    fake_item.created_at = datetime.now()
+    fake_item.last_error = "Timeout"
+    fake_item.title = "Example"
+    query_mock.all.return_value = [fake_item]
+
+    response = client.get("/internal/console/knowledge-items?status=error&limit=1")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["last_error"] == "Timeout"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_console_retry_endpoint(mock_db_session):
+    """Console retry endpoint resets item and requeues task"""
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+    mock_item = MagicMock()
+    mock_item.id = str(uuid.uuid4())
+    mock_item.source_type = "webpage"
+    mock_db_session.query().filter().first.return_value = mock_item
+
+    with patch("console_routes.celery_app.send_task") as mock_send_task:
+        response = client.post(f"/internal/console/knowledge-items/{mock_item.id}/retry")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "queued"
+        mock_send_task.assert_called_once()
+        assert mock_item.status == "pending"
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_console_logs_endpoint(tmp_path, monkeypatch):
+    """Console logs endpoint tails file contents"""
+    log_path = tmp_path / "app.log"
+    log_path.write_text("line1\nline2\n")
+    monkeypatch.setenv("API_LOG_PATH", str(log_path))
+
+    response = client.get("/internal/console/logs?lines=1")
+    assert response.status_code == 200
+    assert response.json()["lines"] == ["line2"]
+
+    monkeypatch.delenv("API_LOG_PATH", raising=False)
+
+
+def test_console_update_item_success(mock_db_session):
+    """Console patch endpoint updates editable fields"""
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+    mock_item = MagicMock()
+    mock_item.id = str(uuid.uuid4())
+    mock_item.source_type = "webpage"
+    mock_item.status = "pending"
+    mock_item.processed_at = None
+    mock_item.created_at = datetime.now()
+    mock_item.processed_text_content = "content"
+    mock_db_session.query().filter().first.return_value = mock_item
+
+    payload = {"title": "Updated", "status": "processing", "last_error": "Timeout"}
+    response = client.patch(f"/internal/console/knowledge-items/{mock_item.id}", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Updated"
+    assert data["status"] == "processing"
+    assert data["last_error"] == "Timeout"
+    assert mock_item.title == "Updated"
+    assert mock_item.status == "processing"
+    assert mock_item.last_error == "Timeout"
+    mock_db_session.commit.assert_called_once()
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_console_update_item_invalid_status(mock_db_session):
+    """Console patch endpoint rejects invalid status"""
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+    mock_item = MagicMock()
+    mock_db_session.query().filter().first.return_value = mock_item
+
+    response = client.patch(
+        "/internal/console/knowledge-items/123",
+        json={"status": "invalid"},
+    )
+    assert response.status_code == 400
+
+    app.dependency_overrides.pop(get_db, None)

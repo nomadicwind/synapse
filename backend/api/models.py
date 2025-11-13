@@ -22,6 +22,7 @@ class KnowledgeItem(Base):
     source_type = Column(String(20), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     processed_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
 
 class ImageAsset(Base):
     __tablename__ = "image_assets"

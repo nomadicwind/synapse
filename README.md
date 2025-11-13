@@ -182,6 +182,27 @@ Once all services are running:
 3. The API documentation can be accessed at `http://localhost:8000/docs`
 4. The mobile app can be run on iOS or Android simulators/devices
 5. MinIO dashboard is available at `http://localhost:9001` (credentials: minioadmin/minioadmin)
+6. **Backend Service Console** (operator dashboard) runs at `http://localhost:5173` after starting the console app (see below)
+
+### Backend Service Console
+
+The console provides health indicators, Celery queue metrics, log tails, and tooling to retry failed captures.
+
+```bash
+# start the API/worker/STT stack first
+./scripts/start_all_services.sh
+
+# in a separate terminal, launch the console app
+cd console
+npm install      # first run only
+npm run dev
+```
+
+Configure the console via:
+
+- `CONSOLE_ALLOWED_ORIGINS` (comma-separated origins permitted by the API, default `http://localhost:5173`)
+- `VITE_CONSOLE_API_BASE_URL` (console frontend, default `http://localhost:8000/internal/console`)
+- `CONSOLE_API_TOKEN` / `VITE_CONSOLE_API_TOKEN` (optional shared secret; when set, the console sends an `X-Console-Token` header and the API rejects requests without it)
 
 ## Testing
 

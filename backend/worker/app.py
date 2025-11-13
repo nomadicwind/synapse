@@ -73,6 +73,7 @@ def process_webpage(item_id: str) -> Dict[str, Any]:
         # Update status to processing
         item.status = 'processing'
         item.processed_at = datetime.now()
+        item.last_error = None
         # Don't commit yet, wait until the end
 
         # Fetch and process the webpage
@@ -139,6 +140,7 @@ def process_webpage(item_id: str) -> Dict[str, Any]:
         item.author = author
         item.published_date = published_date if published_date else None
         item.status = 'ready_for_distillation'
+        item.last_error = None
         
         # Commit all changes at once
         db.commit()
@@ -154,6 +156,7 @@ def process_webpage(item_id: str) -> Dict[str, Any]:
         logger.error(f"Error processing webpage for item {item_id}: {str(e)}")
         if 'item' in locals() and item:
             item.status = 'error'
+            item.last_error = str(e)
             db.commit()  # Commit the error status
         return {
             "status": "error",
@@ -181,6 +184,7 @@ def process_media(item_id: str, source_type: str) -> Dict[str, Any]:
         # Update status to processing
         item.status = 'processing'
         item.processed_at = datetime.now()
+        item.last_error = None
         # Don't commit yet, wait until the end
 
         # Download audio using yt-dlp
@@ -213,6 +217,7 @@ def process_media(item_id: str, source_type: str) -> Dict[str, Any]:
             # Update item with transcript
             item.processed_text_content = transcript
             item.status = 'ready_for_distillation'
+            item.last_error = None
             
             # Commit all changes at once
             db.commit()
@@ -228,6 +233,7 @@ def process_media(item_id: str, source_type: str) -> Dict[str, Any]:
         logger.error(f"Error processing media for item {item_id}: {str(e)}")
         if 'item' in locals() and item:
             item.status = 'error'
+            item.last_error = str(e)
             db.commit()
         return {
             "status": "error",
@@ -260,6 +266,7 @@ def process_voicememo(item_id: str) -> Dict[str, Any]:
         # Update status to processing
         item.status = 'processing'
         item.processed_at = datetime.now()
+        item.last_error = None
 
         # TODO: Implement actual voice memo processing logic
         # 1. Receive audio data (from database or direct upload)
@@ -270,6 +277,7 @@ def process_voicememo(item_id: str) -> Dict[str, Any]:
         # For now, simulate successful processing
         item.processed_text_content = "Voice memo transcription placeholder"
         item.status = 'ready_for_distillation'
+        item.last_error = None
         db.commit()
         
         logger.info(f"Completed voice memo processing for item: {item_id}")
@@ -284,6 +292,7 @@ def process_voicememo(item_id: str) -> Dict[str, Any]:
         logger.error(f"Error processing voice memo for item {item_id}: {str(e)}")
         if 'item' in locals() and item:
             item.status = 'error'
+            item.last_error = str(e)
             db.commit()
         return {
             "status": "error",

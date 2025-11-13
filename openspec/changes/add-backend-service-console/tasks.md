@@ -1,0 +1,21 @@
+## Tasks
+- [x] **Design Console APIs & Auth**
+  - [x] Provide env-driven token guard for `/internal/console/*`
+  - [x] Document required env vars (e.g., `CONSOLE_API_TOKEN`, `VITE_CONSOLE_API_TOKEN`, `CONSOLE_ALLOWED_ORIGINS`)
+- [x] **Implement Health & Metrics Endpoints**
+  - [x] Add FastAPI routes that aggregate API/Worker/STT health plus Redis/PostgreSQL/MinIO connectivity checks
+  - [x] Expose Celery queue depth and worker heartbeat metadata through a metrics endpoint
+- [x] **Knowledge Item Operations**
+  - [x] Build paginated listing API filtered by `status` with detail view (timestamps, error logs)
+  - [x] Implement “retry capture” action that resets `status` to `pending`, updates `processed_at`, and re-enqueues the proper Celery task
+- [x] **Console UI**
+  - [x] Create a secured dashboard UI (React + Vite app) with cards for health states, queue charts, and knowledge-item table
+  - [x] Add alert banners + notifications when thresholds fail, and lightweight log tail viewer
+- [x] **Knowledge Items Page**
+  - [x] Split knowledge-item management into its own route/page that supports paging, filtering, detail view, and retry actions independent of the main dashboard
+- [x] **Knowledge Item Editing**
+  - [x] Add console UI controls to edit approved fields (title, status, last_error) with optimistic updates and backend validation
+  - [x] Extend console APIs to persist edits securely (audit log TBD)
+- [x] **Validation & Docs**
+  - [x] Add pytest coverage for new endpoints/actions and mocked Celery interactions
+  - [x] Document console usage in `README.md` / `STARTUP_GUIDE.md`

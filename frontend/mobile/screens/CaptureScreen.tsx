@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, StyleSheet, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { API_BASE_URL } from '../constants/config';
 
 type RootStackParamList = {
   Tabs: undefined;
@@ -35,26 +36,54 @@ export default function CaptureScreen() {
 
   const handleCapture = async () => {
     setError('');
+    const trimmedUrl = url.trim();
     
-    if (!url.trim()) {
+    if (!trimmedUrl) {
       setError('Please enter a URL');
       return;
     }
 
-    if (sourceType !== 'voicememo' && !isValidUrl(url)) {
+    if (sourceType !== 'voicememo' && !isValidUrl(trimmedUrl)) {
       setError('Please enter a valid URL (e.g., https://example.com)');
       return;
     }
 
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      Alert.alert('Success', 'Content captured successfully!');
+      const response = await fetch(`${API_BASE_URL}/api/v1/capture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: trimmedUrl,
+          source_type: sourceType,
+        }),
+      });
+
+      let data: { item_id?: string; message?: string; detail?: string } | null = null;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const serverMessage =
+          data?.detail || data?.message || `Request failed with status ${response.status}`;
+        throw new Error(serverMessage);
+      }
+
+      const itemId = data?.item_id;
+      const successMessage = itemId
+        ? `Capture queued successfully.\nTracking ID: ${itemId}`
+        : 'Content captured successfully!';
+      Alert.alert('Success', successMessage);
       setUrl('');
       setError('');
     } catch (error) {
-      const errorMessage = 'Failed to capture content';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to capture content';
       setError(errorMessage);
       Alert.alert('Error', errorMessage);
     } finally {

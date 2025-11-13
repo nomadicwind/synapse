@@ -48,6 +48,7 @@ class KnowledgeItemBase(BaseModel):
     source_type: str
     created_at: Optional[str] = None
     processed_at: Optional[str] = None
+    last_error: Optional[str] = None
 
 class KnowledgeItemCreate(KnowledgeItemBase):
     pass
